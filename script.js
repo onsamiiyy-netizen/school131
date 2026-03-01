@@ -58,8 +58,6 @@ function getSubjectColor(subject) {
 
 /* =============================================
    DATA STORE
-   Урок: { subject: "Математика", room: "48" }
-   scheduleData["5А"]["Понедельник"] = [{subject, room}, ...]
    ============================================= */
 const scheduleData = {};
 Object.entries(CLASS_STRUCTURE).forEach(([grade, letters]) => {
@@ -70,19 +68,99 @@ Object.entries(CLASS_STRUCTURE).forEach(([grade, letters]) => {
   });
 });
 
-const data = {
-  homework: [
-    { subject: "Математика",   task: "Стр. 45, задачи 1-5" },
-    { subject: "Русский язык", task: "Написать сочинение на тему «Лето»" },
-    { subject: "Физика",       task: "Параграф 12, вопросы 1-3" },
-  ],
-  news: [
-    "📢 В пятницу контрольная по математике!",
-    "🏆 Наш класс занял 1 место в олимпиаде по химии!",
-    "📅 В следующую среду — экскурсия в музей.",
-    "🎉 Не забудьте сдать деньги на поездку до четверга.",
-  ],
+const data = { homework: [], news: [] };
+
+/* =============================================
+   JSONBIN API
+   ============================================= */
+const JSONBIN_KEY = "$2a$10$AluK8iyaD.k4KaQGWBGjAOMTeFDxwtnWFbYmiCX.zdm7O24J.34Pi";
+const JSONBIN_URL = "https://api.jsonbin.io/v3/bins";
+let BIN_ID = null; // будет загружен или создан автоматически
+
+const HEADERS = {
+  "Content-Type": "application/json",
+  "X-Master-Key": JSONBIN_KEY,
+  "X-Bin-Name":   "school-botpanel",
 };
+
+async function checkServer() {
+  try {
+    // Ищем существующий bin
+    const r = await fetch(`${JSONBIN_URL}`, {
+      headers: { "X-Master-Key": JSONBIN_KEY, "X-Bin-Meta": "true" },
+    });
+    if (!r.ok) return false;
+    const bins = await r.json();
+    const existing = bins.find?.(b => b.snippetMeta?.name === "school-botpanel");
+    if (existing) BIN_ID = existing.snippetMeta.id;
+    return true;
+  } catch { return false; }
+}
+
+async function loadFromServer() {
+  try {
+    if (!BIN_ID) {
+      // Создаём новый bin с дефолтными данными
+      const defaultDB = { schedule: {}, homework: [], news: [] };
+      const r = await fetch(JSONBIN_URL, {
+        method:  "POST",
+        headers: HEADERS,
+        body:    JSON.stringify(defaultDB),
+      });
+      const res = await r.json();
+      BIN_ID = res.metadata?.id;
+      return; // новый bin — данных нет, оставим prefill
+    }
+
+    const r  = await fetch(`${JSONBIN_URL}/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": JSONBIN_KEY },
+    });
+    const res = await r.json();
+    const db  = res.record;
+
+    if (db.schedule && Object.keys(db.schedule).length > 0) {
+      Object.entries(db.schedule).forEach(([key, days]) => {
+        if (scheduleData[key]) scheduleData[key] = days;
+      });
+    } else {
+      prefillMonday(); // первый запуск — заполняем понедельник
+      await saveSchedule();
+    }
+    if (db.homework?.length) data.homework = db.homework;
+    if (db.news?.length)     data.news     = db.news;
+  } catch (e) {
+    console.warn("Ошибка загрузки:", e);
+    prefillMonday();
+  }
+}
+
+async function saveAll() {
+  if (!BIN_ID) return;
+  try {
+    await fetch(`${JSONBIN_URL}/${BIN_ID}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_KEY },
+      body:    JSON.stringify({ schedule: scheduleData, homework: data.homework, news: data.news }),
+    });
+  } catch (e) { console.warn("Ошибка сохранения:", e); }
+}
+
+const saveSchedule = saveAll;
+const saveHomework = saveAll;
+const saveNews     = saveAll;
+
+/* Индикатор статуса */
+function setServerStatus(online) {
+  const dot  = document.querySelector(".status-dot");
+  const text = document.querySelector(".bot-status span:last-child");
+  if (online) {
+    dot  && (dot.style.background = "var(--success)");
+    text && (text.textContent = "База онлайн");
+  } else {
+    dot  && (dot.style.background = "#ffd54f");
+    text && (text.textContent = "Офлайн режим");
+  }
+}
 
 /* =============================================
    STATE
@@ -306,6 +384,7 @@ function renderSchedule() {
         arr.splice(i, 0, moved);
         dragSrcIndex = null;
         renderSchedule();
+        saveSchedule();
       });
     }
 
@@ -344,6 +423,7 @@ function deleteLesson(idx) {
     () => {
       scheduleData[currentClassKey()][currentDay].splice(idx, 1);
       renderSchedule();
+      saveSchedule();
     }
   );
   // Поменяем текст кнопки сохранения на "Удалить"
@@ -373,6 +453,7 @@ function editLesson(idx) {
       if (!newSubject) return;
       scheduleData[currentClassKey()][currentDay][idx] = { subject: newSubject, room: newRoom };
       renderSchedule();
+      saveSchedule();
     }
   );
   // Autofocus and select text for quick editing
@@ -410,6 +491,7 @@ function renderHomework() {
 function deleteHomework(idx) {
   data.homework.splice(idx, 1);
   renderHomework();
+  saveHomework();
 }
 
 /* =============================================
@@ -437,6 +519,7 @@ function renderNews() {
 function deleteNews(idx) {
   data.news.splice(idx, 1);
   renderNews();
+  saveNews();
 }
 
 /* =============================================
@@ -489,6 +572,7 @@ function openScheduleModal() {
       if (!subject) return;
       scheduleData[currentClassKey()][currentDay].push({ subject, room });
       renderSchedule();
+      saveSchedule();
     }
   );
 }
@@ -506,6 +590,7 @@ function openHomeworkModal() {
       if (!subject || !task) return;
       data.homework.push({ subject, task });
       renderHomework();
+      saveHomework();
     }
   );
 }
@@ -520,6 +605,7 @@ function openNewsModal() {
       if (!val) return;
       data.news.push(val);
       renderNews();
+      saveNews();
     }
   );
 }
@@ -735,12 +821,26 @@ function prefillMonday() {
     {subject:"Обществознание", room:"53"},
   ];
 }
-prefillMonday();
-
 /* =============================================
    INIT
    ============================================= */
-renderLetterSelector();
-renderSchedule();
-renderHomework();
-renderNews();
+async function init() {
+  const online = await checkServer();
+  setServerStatus(online);
+
+  if (online) {
+    await loadFromServer();
+  } else {
+    // Офлайн — грузим предзаполненные данные
+    prefillMonday();
+  }
+
+  renderLetterSelector();
+  renderSchedule();
+  renderHomework();
+  renderNews();
+}
+
+init();
+
+
