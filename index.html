@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Панель управления ботом</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-box">
+      <div class="login-logo">
+        <span class="login-logo-icon">🤖</span>
+        <span class="login-logo-text">BotPanel</span>
+      </div>
+      <div class="login-roles">
+        <button class="role-btn active" data-role="teacher">👩‍🏫 Учитель</button>
+        <button class="role-btn" data-role="student">🎒 Ученик</button>
+      </div>
+      <div class="login-form" id="login-form">
+        <div id="teacher-fields">
+          <div class="login-field">
+            <label>Логин</label>
+            <input type="text" id="login-username" placeholder="Введите логин" autocomplete="off"/>
+          </div>
+          <div class="login-field">
+            <label>Пароль</label>
+            <input type="password" id="login-password" placeholder="Введите пароль"/>
+          </div>
+        </div>
+        <div id="student-fields" style="display:none;">
+          <p class="student-hint">Ученики входят без пароля — только просмотр.</p>
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="btn-primary login-btn" id="login-btn">Войти</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">🤖</span>
+      <span class="logo-text">BotPanel</span>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-tab="schedule">📅 Расписание</button>
+      <button class="nav-btn" data-tab="homework">📚 Домашнее задание</button>
+      <button class="nav-btn" data-tab="news">📰 Новости</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="bot-status">
+        <span class="status-dot"></span>
+        <span>Бот онлайн</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="topbar">
+      <h1 class="page-title" id="page-title">📅 Расписание</h1>
+      <div class="topbar-actions">
+        <button class="btn-primary teacher-only" id="add-btn">+ Добавить</button>
+        <div class="user-badge" id="user-badge"></div>
+        <button class="btn-logout" id="logout-btn">Выйти</button>
+      </div>
+    </header>
+    <div class="disclaimer-banner">
+      ⚠️ ПРИ НЕДОПОНИМАНИИ ОБРАТИТЬСЯ К КЛАССНОМУ РУКОВОДИТЕЛЮ
+      <span class="disclaimer-sub">(разработчик ответственности не несёт)</span>
+    </div>
+
+    <!-- SCHEDULE -->
+    <section class="tab-content active" id="tab-schedule">
+      <div class="schedule-class-panel">
+        <div class="schedule-class-panel-label">Класс</div>
+        <div class="grade-selector" id="grade-selector">
+          <button class="grade-btn active" data-grade="5">5 класс</button>
+          <button class="grade-btn" data-grade="8">8 класс</button>
+          <button class="grade-btn" data-grade="9">9 класс</button>
+          <button class="grade-btn" data-grade="10">10 класс</button>
+          <button class="grade-btn" data-grade="11">11 класс</button>
+        </div>
+        <div class="letter-selector" id="letter-selector"></div>
+      </div>
+
+      <div class="schedule-day-panel">
+        <div class="schedule-class-panel-label">День</div>
+        <div class="day-tabs" id="day-tabs">
+          <button class="day-btn active" data-day="Понедельник">Пн</button>
+          <button class="day-btn" data-day="Вторник">Вт</button>
+          <button class="day-btn" data-day="Среда">Ср</button>
+          <button class="day-btn" data-day="Четверг">Чт</button>
+          <button class="day-btn" data-day="Пятница">Пт</button>
+        </div>
+      </div>
+
+      <div class="current-class-label" id="current-class-label"></div>
+      <div class="card-grid" id="schedule-list"></div>
+    </section>
+
+    <!-- HOMEWORK -->
+    <section class="tab-content" id="tab-homework">
+      <div class="card-grid" id="homework-list"></div>
+    </section>
+
+    <!-- NEWS -->
+    <section class="tab-content" id="tab-news">
+      <div class="card-grid" id="news-list"></div>
+    </section>
+  </main>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Добавить</h2>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Отмена</button>
+        <button class="btn-primary" id="modal-save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav">
+    <button class="mobile-nav-btn active" data-tab="schedule">
+      <span class="mobile-nav-icon">📅</span>
+      <span class="mobile-nav-label">Расписание</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="homework">
+      <span class="mobile-nav-icon">📚</span>
+      <span class="mobile-nav-label">Задания</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="news">
+      <span class="mobile-nav-icon">📰</span>
+      <span class="mobile-nav-label">Новости</span>
+    </button>
+  </nav>
+</body>
+</html>
